@@ -13,6 +13,8 @@ include_directories("${PROJECT_BINARY_DIR}")
 # Define sources and executable
 add_executable("wordalyzer"
     src/main.cpp
+    src/database.cpp
+    src/audio.cpp
     )
 file(COPY assets DESTINATION ${CMAKE_BINARY_DIR})
 
