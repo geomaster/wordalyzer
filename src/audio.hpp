@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "common.hpp"
+#include <exception>
 
 namespace wordalyzer {
     struct clip_t;
