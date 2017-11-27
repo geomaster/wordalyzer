@@ -13,6 +13,40 @@
 using namespace wordalyzer;
 using namespace std;
 
+enum CommandType {
+    CMD_DB_LIST,
+    CMD_DB_ADD,
+    CMD_DB_REMOVE,
+    CMD_DIFF
+};
+
+struct duration_t {
+    int n;
+    bool is_ms;
+};
+
+// Config options
+CommandType command;
+string db_name = "lpc.db";
+string clip_name = "";
+
+// db add
+duration_t window_size = { 1024, false };
+duration_t window_stride = { 512, false };
+WindowFunction window_fn = WINDOW_HANN;
+bool source_wav = false;
+string source_filename = "";
+int vector_size = 16;
+
+// diff
+string diff_clip_1 = "";
+string diff_clip_2 = "";
+int word_idx_1 = 0;
+int word_idx_2 = 0;
+int vector_offset_1 = 0;
+int vector_offset_2 = 0;
+int vector_count = 0;
+
 void print_usage(string program_name)
 {
     string lines[] = {
@@ -29,10 +63,10 @@ void print_usage(string program_name)
         "       db remove [db_opts] <name>",
         "           remove a clip from the database",
         "",
-        "       diff [db_opts] <start_vector_1> <start_vector_2> <count> <outfile>",
+        "       diff [db_opts] <start_vector_1> <start_vector_2> <count>",
         "           shows a diff between word vectors, given the words to test,",
         "           offsets (in windows) within those words, the number of succeeding",
-        "           vectors to test, and outputs the diagram to the given output file",
+        "           vectors to test, and shows the diagram in a window",
         "",
         "   <source> is one of:",
         "       wav=<filename>: use a .wav file as a source",
@@ -62,29 +96,6 @@ void print_usage(string program_name)
         cout << lines[i] << endl;
     }
 }
-
-struct duration_t {
-    int n;
-    bool is_ms;
-};
-
-enum CommandType {
-    CMD_DB_LIST,
-    CMD_DB_ADD,
-    CMD_DB_REMOVE,
-    CMD_DB_DIFF
-};
-
-string db_name = "lpc.db";
-string clip_name = "";
-duration_t window_size = { 1024, false };
-duration_t window_stride = { 512, false };
-WindowFunction window_fn = WINDOW_HANN;
-bool source_wav = false;
-string source_filename = "";
-int vector_size = 16;
-
-CommandType command;
 
 class command_line_exception : public exception
 {
@@ -141,6 +152,53 @@ int duration_to_samples(const audio_t& audio, duration_t duration)
         return audio.ms_to_samples(duration.n);
     } else {
         return duration.n;
+    }
+}
+
+void parse_start_vector(const string& option, string& clip_name, int& word_idx, int& offset)
+{
+    size_t colon_pos = option.find(':');
+    if (colon_pos == string::npos) {
+        throw command_line_exception("Invalid start vector specification: `" + option + "`");
+    }
+
+    clip_name = option.substr(0, colon_pos - 1);
+    string rest = option.substr(colon_pos + 1);
+    size_t colon_pos_2 = rest.find(':');
+    if (colon_pos_2 == string::npos) {
+        word_idx = string_to_integer(rest);
+        offset = 0;
+    } else {
+        word_idx = string_to_integer(rest.substr(0, colon_pos_2 - 1));
+        offset = string_to_integer(rest.substr(colon_pos_2 + 1));
+    }
+}
+
+void do_diff()
+{
+    database db(db_name);
+    clip_t clip_1 = db.get_clip(diff_clip_1);
+    clip_t clip_2 = db.get_clip(diff_clip_2);
+
+    if (word_idx_1 >= clip_1.words.size()) {
+        throw command_line_exception("Index " + to_string(word_idx_1) + " is out of range for clip `" + diff_clip_1 + "`");
+    }
+
+    if (word_idx_2 >= clip_2.words.size()) {
+        throw command_line_exception("Index " + to_string(word_idx_1) + " is out of range for clip `" + diff_clip_2 + "`");
+    }
+
+    word_t& word_1 = clip_1.words[word_idx_1];
+    word_t& word_2 = clip_2.words[word_idx_2];
+
+    if (vector_offset_1 + vector_count > word_1.coeff_vectors.size()) {
+        throw command_line_exception("Offset " + to_string(vector_offset_1) + " and count " + to_string(vector_count) + " are out of "
+                "range for clip `" + diff_clip_1 + "`");
+    }
+
+    if (vector_offset_2 + vector_count > word_2.coeff_vectors.size()) {
+        throw command_line_exception("Offset " + to_string(vector_offset_2) + " and count " + to_string(vector_count) + " are out of "
+                "range for clip `" + diff_clip_2 + "`");
     }
 }
 
@@ -301,7 +359,22 @@ void parse(int argc, char* argv[])
             }
         }
     } else if (cmd1 == "diff") {
-        cout << "diff me baybay" << endl;
+        const int offset = 1;
+        int i = offset + parse_db_opts(argc - offset, argv + offset);
+
+        if (i + 3 < argc) {
+            throw command_line_exception("Extra arguments for 'diff'");
+        }
+
+        if (i > argc - 3) {
+            throw command_line_exception("Not enough arguments for 'diff'");
+        }
+
+        parse_start_vector(argv[i], diff_clip_1, word_idx_1, vector_offset_1);
+        parse_start_vector(argv[i + 1], diff_clip_2, word_idx_2, vector_offset_2);
+        vector_count = string_to_integer(argv[i + 2]);
+
+        command = CMD_DIFF;
     } else {
         throw command_line_exception("Unknown command: `" + cmd1 + "`");
     }
@@ -317,7 +390,7 @@ int main(int argc, char* argv[])
     try {
         parse(argc, argv);
     } catch (command_line_exception& e) {
-        cerr << "Error in command line: " << e.what() << endl << endl;
+        cerr << "[-] Error in command line: " << e.what() << endl << endl;
         print_usage(argv[0]);
         return -1;
     }
@@ -327,10 +400,11 @@ int main(int argc, char* argv[])
         case CMD_DB_LIST: do_db_list(); break;
         case CMD_DB_REMOVE: do_db_remove(); break;
         case CMD_DB_ADD: do_db_add(); break;
-        default: cerr << "not impl'd" << endl;
+        case CMD_DIFF: do_diff(); break;
+        default: cerr << "Unknown command"; return -2;
         }
     } catch (exception& e) {
-        cerr << "Error: " << e.what() << endl;
+        cerr << "[-] Error: " << e.what() << endl;
     }
 
     return 0;
