@@ -7,6 +7,7 @@
 #include "wav.hpp"
 #include "endpointing.hpp"
 #include "database.hpp"
+#include "record.hpp"
 
 using namespace wordalyzer;
 using namespace std;
@@ -162,8 +163,14 @@ void do_db_remove()
 void do_db_add()
 {
     cout << "addy" << endl;
-    std::ifstream wf(source_filename);
-    audio_t audio = audio_from_wav(wf);
+    audio_t audio;
+    if (source_wav) {
+        std::ifstream wf(source_filename);
+        audio = audio_from_wav(wf);
+    } else {
+        audio = record_audio();
+    }
+
     vector<pair<int, int>> ep = compute_endpoints(audio);
     cout << ep.size() << " endpoints:" << endl;
     for (auto p : ep) {
