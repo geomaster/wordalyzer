@@ -46,3 +46,47 @@ double wordalyzer::deserialize_double(vector<byte>::const_iterator& it)
 
     return u.d;
 }
+
+bool wordalyzer::starts_with(const string& s, const string& prefix)
+{
+    if (s.length() < prefix.length()) {
+        return false;
+    }
+
+    return s.substr(0, prefix.length()) == prefix;
+}
+
+bool wordalyzer::ends_with(const string& s, const string& suffix)
+{
+    if (suffix.length() == 0) {
+        return true;
+    }
+
+    if (s.length() < suffix.length()) {
+        return false;
+    }
+
+    for (size_t ai = s.length() - suffix.length(), bi = 0; ai < s.length(); ai++, bi++) {
+        if (s[ai] != suffix[bi]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+int wordalyzer::string_to_integer(const string& s)
+{
+    int pow10 = 1, res = 0;
+    for (auto it = s.rbegin(); it != s.rend(); it++) {
+        if (*it < '0' || *it > '9') {
+            throw format_exception("Invalid number: `" + s + "`");
+        }
+
+        res = (*it - '0') * pow10 + res;
+        pow10 *= 10;
+    }
+
+    return res;
+}
+

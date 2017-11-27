@@ -16,6 +16,9 @@ add_executable("wordalyzer"
     src/database.cpp
     src/audio.cpp
     src/common.cpp
+    src/wav.cpp
+    src/window.cpp
+    src/endpointing.cpp
     )
 file(COPY assets DESTINATION ${CMAKE_BINARY_DIR})
 
