@@ -8,6 +8,7 @@
 #include "endpointing.hpp"
 #include "database.hpp"
 #include "record.hpp"
+#include "lpc.hpp"
 
 using namespace wordalyzer;
 using namespace std;
@@ -74,12 +75,6 @@ enum CommandType {
     CMD_DB_DIFF
 };
 
-enum WindowFunction {
-    WINDOW_NONE,
-    WINDOW_HAMMING,
-    WINDOW_HANN
-};
-
 string db_name = "lpc.db";
 string clip_name = "";
 duration_t window_size = { 1024, false };
@@ -140,6 +135,15 @@ duration_t parse_duration(const string& s)
     }
 }
 
+int duration_to_samples(const audio_t& audio, duration_t duration)
+{
+    if (duration.is_ms) {
+        return audio.ms_to_samples(duration.n);
+    } else {
+        return duration.n;
+    }
+}
+
 void do_db_list()
 {
     database db(db_name);
@@ -162,7 +166,6 @@ void do_db_remove()
 
 void do_db_add()
 {
-    cout << "addy" << endl;
     audio_t audio;
     if (source_wav) {
         std::ifstream wf(source_filename);
@@ -172,10 +175,31 @@ void do_db_add()
     }
 
     vector<pair<int, int>> ep = compute_endpoints(audio);
-    cout << ep.size() << " endpoints:" << endl;
+    cout << "[*] Got " << ep.size() << " words:" << endl;
     for (auto p : ep) {
-        cout << "\t" << audio.samples_to_ms(p.first) << "ms - " << audio.samples_to_ms(p.second) << "ms" << endl;
+        cout << "[|]\t" << audio.samples_to_ms(p.first) << "ms - " << audio.samples_to_ms(p.second) << "ms" << endl;
     }
+
+    cout << "[*] Analyzing, please wait..." << endl;
+    clip_t clip;
+    clip.window_size = duration_to_samples(audio, window_size);
+    clip.window_stride = duration_to_samples(audio, window_stride);
+    clip.vector_size = vector_size;
+    clip.name = clip_name;
+    for (auto p : ep) {
+        clip.words.push_back(analyze_word(audio.samples.begin() + p.first,
+                                          audio.samples.begin() + p.second,
+                                          clip.window_size,
+                                          clip.window_stride,
+                                          vector_size,
+                                          window_fn));
+    }
+    cout << "[+] Done!" << endl;
+
+    database db(db_name);
+    db.add_clip(clip);
+
+    cout << "[*] Added clip `" << clip.name << "` with " << clip.words.size() << " words" << endl;
 }
 
 int parse_source_opts(int argc, char* argv[])

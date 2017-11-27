@@ -14,11 +14,11 @@ namespace wordalyzer {
     };
 
     template<typename Window>
-    void apply_window(vector<float>& samples);
+    void apply_window_fn(vector<float>& samples);
 }
 
 template<typename Window>
-void wordalyzer::apply_window(vector<float>& samples)
+void wordalyzer::apply_window_fn(vector<float>& samples)
 {
     Window w;
     for (size_t i = 0; i < samples.size(); i++) {
@@ -42,12 +42,23 @@ float wordalyzer::hann_window::operator()(float alpha) const
 
 void wordalyzer::apply_hamming_window(vector<float>& samples)
 {
-    apply_window<hamming_window>(samples);
+    apply_window_fn<hamming_window>(samples);
 }
 
 void wordalyzer::apply_hann_window(vector<float>& samples)
 {
-    apply_window<hann_window>(samples);
+    apply_window_fn<hann_window>(samples);
+}
+
+void wordalyzer::apply_window(WindowFunction fn, vector<float>& samples)
+{
+    switch (fn)
+    {
+    case WINDOW_HAMMING: apply_hamming_window(samples); break;
+    case WINDOW_HANN: apply_hann_window(samples); break;
+    case WINDOW_NONE:
+    default: break;
+    }
 }
 
 float wordalyzer::get_hamming_window_gain()
@@ -58,4 +69,14 @@ float wordalyzer::get_hamming_window_gain()
 float wordalyzer::get_hann_window_gain()
 {
     return 0.5f;
+}
+
+float wordalyzer::get_window_gain(WindowFunction fn)
+{
+    switch (fn) {
+    case WINDOW_HAMMING: return get_hamming_window_gain();
+    case WINDOW_HANN: return get_hann_window_gain();
+    case WINDOW_NONE:
+    default: return 1.0f;
+    }
 }
