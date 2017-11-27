@@ -62,7 +62,7 @@ list<span_t> wordalyzer::to_speech_spans(const vector<bool>& is_speech)
     }
 
     if (prev) {
-        res.push_back({ start, is_speech.size() - 1 });
+        res.push_back({ start, is_speech.size() - start });
     }
 
     return res;
