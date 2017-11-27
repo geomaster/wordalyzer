@@ -10,6 +10,9 @@
 #include "record.hpp"
 #include "lpc.hpp"
 
+#include "gui.hpp"
+#include "diff_diagram.hpp"
+
 using namespace wordalyzer;
 using namespace std;
 
@@ -162,14 +165,14 @@ void parse_start_vector(const string& option, string& clip_name, int& word_idx, 
         throw command_line_exception("Invalid start vector specification: `" + option + "`");
     }
 
-    clip_name = option.substr(0, colon_pos - 1);
+    clip_name = option.substr(0, colon_pos);
     string rest = option.substr(colon_pos + 1);
     size_t colon_pos_2 = rest.find(':');
     if (colon_pos_2 == string::npos) {
         word_idx = string_to_integer(rest);
         offset = 0;
     } else {
-        word_idx = string_to_integer(rest.substr(0, colon_pos_2 - 1));
+        word_idx = string_to_integer(rest.substr(0, colon_pos_2));
         offset = string_to_integer(rest.substr(colon_pos_2 + 1));
     }
 }
@@ -200,6 +203,14 @@ void do_diff()
         throw command_line_exception("Offset " + to_string(vector_offset_2) + " and count " + to_string(vector_count) + " are out of "
                 "range for clip `" + diff_clip_2 + "`");
     }
+
+    gui::diff_diagram diagram(word_1.coeff_vectors.begin() + vector_offset_1,
+                              word_1.coeff_vectors.begin() + vector_offset_1 + vector_count,
+                              word_2.coeff_vectors.begin() + vector_offset_2,
+                              word_2.coeff_vectors.begin() + vector_offset_2 + vector_count);
+
+    gui::diagram_window window(&diagram);
+    window.start();
 }
 
 void do_db_list()
@@ -359,7 +370,7 @@ void parse(int argc, char* argv[])
             }
         }
     } else if (cmd1 == "diff") {
-        const int offset = 1;
+        const int offset = 1 + 1;
         int i = offset + parse_db_opts(argc - offset, argv + offset);
 
         if (i + 3 < argc) {

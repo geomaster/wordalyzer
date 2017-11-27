@@ -21,6 +21,8 @@ add_executable("wordalyzer"
     src/endpointing.cpp
     src/record.cpp
     src/lpc.cpp
+    src/gui.cpp
+    src/diff_diagram.cpp
     )
 file(COPY assets DESTINATION ${CMAKE_BINARY_DIR})
 

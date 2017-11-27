@@ -6,6 +6,7 @@ namespace wordalyzer::gui {
     private:
         std::vector<double> diffs;
         double max_diff;
+        int left_i, right_i;
 
     public:
         diff_diagram(std::vector<std::vector<double>>::const_iterator begin1,
@@ -23,8 +24,6 @@ namespace wordalyzer::gui {
         std::map<float, std::string> get_x_labels();
 
         float get_drag_step_normalized();
-
-        float get_zoom_granularity();
 
         void set_x_range(std::pair<float, float> new_range);
 
