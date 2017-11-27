@@ -54,6 +54,8 @@ void wordalyzer::database::add_clip(const clip_t& clip)
         throw duplicate_clip_exception(clip.name);
     }
 
+    check_ret(sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, 0, nullptr));
+
     // Add the clip entry
     const char clip_statement_str[] =
         "INSERT INTO clip (name, vector_size, window_size, window_stride)"
@@ -79,6 +81,7 @@ void wordalyzer::database::add_clip(const clip_t& clip)
         check_ret(sqlite3_step(clip_statement));
     } catch (database_exception& e) {
         sqlite3_finalize(clip_statement);
+        check_ret(sqlite3_exec(db, "ROLLBACK TRANSACTION", nullptr, 0, nullptr));
         throw e;
     }
 
@@ -114,12 +117,15 @@ void wordalyzer::database::add_clip(const clip_t& clip)
                                         SQLITE_TRANSIENT));
 
             check_ret(sqlite3_step(word_statement));
+            check_ret(sqlite3_reset(word_statement));
         }
     } catch  (database_exception& e) {
         sqlite3_finalize(word_statement);
+        check_ret(sqlite3_exec(db, "ROLLBACK TRANSACTION", nullptr, 0, nullptr));
         throw e;
     }
 
+    check_ret(sqlite3_exec(db, "COMMIT TRANSACTION", nullptr, 0, nullptr));
     sqlite3_finalize(word_statement);
 }
 
@@ -186,6 +192,8 @@ void wordalyzer::database::remove_clip(const string& clip_name)
     const char clip_statement_str[] =
         "DELETE FROM clip WHERE name = ?";
 
+    check_ret(sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, 0, nullptr));
+
     sqlite3_stmt* clip_statement;
     check_ret(sqlite3_prepare_v3(db,
                                  clip_statement_str,
@@ -204,6 +212,7 @@ void wordalyzer::database::remove_clip(const string& clip_name)
         check_ret(sqlite3_step(clip_statement));
     } catch (database_exception& e) {
         sqlite3_finalize(clip_statement);
+        check_ret(sqlite3_exec(db, "ROLLBACK TRANSACTION", nullptr, 0, nullptr));
         throw e;
     }
 
@@ -229,9 +238,11 @@ void wordalyzer::database::remove_clip(const string& clip_name)
         check_ret(sqlite3_step(word_statement));
     } catch (database_exception& e) {
         sqlite3_finalize(word_statement);
+        check_ret(sqlite3_exec(db, "ROLLBACK TRANSACTION", nullptr, 0, nullptr));
         throw e;
     }
 
+    check_ret(sqlite3_exec(db, "COMMIT TRANSACTION", nullptr, 0, nullptr));
     sqlite3_finalize(word_statement);
 }
 
